@@ -36,7 +36,9 @@ export const createMeteorNetworkInterface = (givenConfig) => {
   if (config.useMeteorAccounts) {
     networkInterface.use([{
       applyMiddleware(request, next) {
-        const currentUserToken = Accounts._storedLoginToken();
+        // Accounts._storedLoginToken() refers to local storage, which is naturally undefined server-side
+        // A way to access the login token would be thanks to InjectData.getData(res, 'fast-render-data'), but the NetworkInterface/applyMiddleware function doesn't give access to 'response', only req & next 🤔
+        const currentUserToken = Meteor.isClient ? Accounts._storedLoginToken() : undefined;
 
         if (!currentUserToken) {
           next();

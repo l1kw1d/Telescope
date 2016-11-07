@@ -7,8 +7,10 @@ import Events from "meteor/nova:events";
 import Helmet from 'react-helmet';
 import Cookie from 'react-cookie';
 import ReactDOM from 'react-dom';
+import 'isomorphic-fetch';
 
 import { ApolloProvider } from 'react-apollo';
+import { getDataFromTree } from 'react-apollo/server';
 import { client } from 'meteor/nova:base-apollo';
 import { configureStore } from "./store.js";
 
@@ -50,14 +52,17 @@ Meteor.startup(() => {
   const historyHook = newHistory => history = newHistory;
 
   // Pass the state of the store as the object to be dehydrated server side
-  const dehydrateHook = () => {
-    // console.log('store get state', store.getState());
-    return store.getState();
-  }
+  // reactrouter:react-router-ssr modification -> give the app as a parameter of this hook, the app being ApolloProvider<RouterContext<Apollo(AppContainer)<...
+  // see meteor-react-router-ssr/lib/server.jsx:223
+  const dehydrateHook = (app) => {
+    return getDataFromTree(app)
+            .then(context => context.store.getState())
+            .catch(e => console.log('dehydrate issue', e));
+  };
 
   // Take the rehydrated state and use it as the initial state client side
   const rehydrateHook = state => {
-    // console.log('rehydrated state', state);
+    console.log('rehydrated state', state);
     initialState = state
   };
 
@@ -87,14 +92,7 @@ Meteor.startup(() => {
     },
     historyHook,
     dehydrateHook,
-    // see https://github.com/thereactivestack/meteor-react-router-ssr/blob/9762f12c5d5512c5cfee8663a29428f7e4c141f8/lib/server.jsx#L241-L257
-    // note: can't get it working well
-    // fetchDataHook: (components) => {
-    //   console.log(components[0]); // = Apollo(AppContainer)
-    //   // console.log('this is where ssr & apollo should interact -> fetch data')
-    //   return [components[0].fetchData({} /* should be props .. how to get them?*/, {client})];
-    // },
-    fetchDataHook: (components) => components,
+    fetchDataHook: (components) => components //{
   };
   
   ReactRouterSSR.Run(AppRoutes, clientOptions, serverOptions);
